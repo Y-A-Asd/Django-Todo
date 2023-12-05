@@ -1,0 +1,23 @@
+{% if request.user.is_authenticated %}
+<p> you looged in as: {{ request.user }} </p>
+    <a href="{% url 'tasks:logout' %}">logout</a>
+{% else %}
+    <a href="{% url 'tasks:login' %}">login</a>
+{% endif %}
+<hr>
+
+<h1>My to do list</h1>
+<a href="{% url 'tasks:task_create' %}">Create Task</a>
+<p>Items</p>
+<ul>
+<form method="GET">
+    <input type="text" placeholder="Search" name="search">
+    <input type="submit" value="Search">
+</form>
+
+    {% for task in tasks %}
+        <li>{{ task.title }} <a href="{% url 'tasks:task' task.id %}">view</a>
+            <a href="{% url 'tasks:task_update' task.id %}">update</a>
+            <a href="{% url 'tasks:task_delete' task.id %}">delete</a></li>
+    {% endfor %}
+</ul>
