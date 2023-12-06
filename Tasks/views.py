@@ -1,13 +1,18 @@
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect
 from django.views.generic.list import ListView
 from django.views.generic.detail import DetailView
-from django.views.generic.edit import CreateView, UpdateView, DeleteView,FormView
+from django.views.generic.edit import CreateView, UpdateView, DeleteView, FormView
 from django.urls import reverse_lazy
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import Task
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
+from django.utils.decorators import method_decorator
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, get_object_or_404
+from django.views import View
 
 
 # Create your views here.
@@ -17,7 +22,7 @@ class TaskListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['tasks'] = context['tasks'].filter(user=self.request.user)
         search = self.request.GET.get('search') or ''
-        if search :
+        if search:
             context['tasks'] = context['tasks'].filter(title__icontains=search)
         return context
 
@@ -31,10 +36,12 @@ class TaskDetailView(LoginRequiredMixin, DetailView):
     context_object_name = "task"
 
 
+
 class TaskCreateView(LoginRequiredMixin, CreateView):
     model = Task
-    fields = ['title','description','complete']
+    fields = ['title', 'description', 'complete']
     success_url = reverse_lazy('tasks:tasks')
+
     def form_valid(self, form):
         form.instance.user = self.request.user
         return super(TaskCreateView, self).form_valid(form)
@@ -50,6 +57,12 @@ class TaskDeleteView(LoginRequiredMixin, DeleteView):
     model = Task
     context_object_name = "task"
     success_url = reverse_lazy('tasks:tasks')
+    def dispatch(self, request, *args, **kwargs):
+        task = self.get_object()
+        if task.user != self.request.user:
+            raise PermissionDenied("You don't have permission to delete this task.")
+        return super().dispatch(request,*args, **kwargs)
+
 
 
 class LoginView(LoginView):
@@ -60,19 +73,22 @@ class LoginView(LoginView):
     def get_success_url(self):
         return reverse_lazy('tasks:tasks')
 
+
 class RegisterView(FormView):
     template_name = 'Tasks/register.html'
     form_class = UserCreationForm
     success_url = reverse_lazy('tasks:tasks')
+
     def form_valid(self, form):
         user = form.save()
         if user is not None:
-            login(self.request,user)
-        return super(RegisterView,self).form_valid(form)
+            login(self.request, user)
+        return super(RegisterView, self).form_valid(form)
 
     redirect_authenticated_user = True
-    def get(self,*args,**kwargs):
+
+    def get(self, *args, **kwargs):
         if self.request.user.is_authenticated:
             return redirect('tasks:tasks')
-        else:super(RegisterView,self).get(*args,**kwargs)
-
+        else:
+            super(RegisterView, self).get(*args, **kwargs)
